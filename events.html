@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Events | BGU Event Planner</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ===== Header ===== -->
+  <header>
+    <h1>All Events</h1>
+    <nav>
+      <a href="index.html" class="btn">🏠 Dashboard</a>
+      <a href="create-event.html" id="createBtn" class="btn">➕ Create Event</a>
+      <button onclick="logout()" id="logoutBtn" class="btn">Logout</button>
+      <button id="darkToggle" class="btn">🌙 Dark Mode</button>
+    </nav>
+  </header>
+
+  <!-- ===== Main Content ===== -->
+  <main class="container">
+    <h2 style="margin-bottom: 15px; color: var(--primary);">Browse Events</h2>
+    
+    <!-- Event Grid -->
+    <section id="eventList" class="event-grid"></section>
+
+    <!-- Empty state message -->
+    <p id="emptyMsg" style="text-align:center; margin-top:20px; color:gray; display:none;">
+      No events available yet. Create one to get started!
+    </p>
+  </main>
+
+  <!-- ===== Firebase Events Loader ===== -->
+  <script type="module">
+    import { db } from './firebase-config.js';
+    import { collection, getDocs, deleteDoc, doc } 
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const eventList = document.getElementById("eventList");
+    const emptyMsg = document.getElementById("emptyMsg");
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+
+    // Hide create + logout buttons if not logged in
+    if (!isLoggedIn) {
+      document.getElementById("createBtn").style.display = "none";
+      document.getElementById("logoutBtn").style.display = "none";
+    }
+
+    async function loadEvents() {
+      eventList.innerHTML = "";
+      const querySnapshot = await getDocs(collection(db, "events"));
+
+      if (querySnapshot.empty) {
+        emptyMsg.style.display = "block";
+        return;
+      } else {
+        emptyMsg.style.display = "none";
+      }
+
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const card = document.createElement("div");
+        card.className = "event-card";
+
+        card.innerHTML = `
+          ${data.image ? `<img src="${data.image}" alt="Event Image">` : ""}
+          <h3>${data.title}</h3>
+          <p><strong>Date:</strong> ${data.date}</p>
+          <p><strong>Location:</strong> ${data.location}</p>
+          <p><strong>Type:</strong> ${data.type}</p>
+          <p>${data.description || ""}</p>
+          <div class="card-buttons"></div>
+        `;
+
+        const btnContainer = card.querySelector(".card-buttons");
+
+        // Only logged-in users get delete button
+        if (isLoggedIn) {
+          const deleteBtn = document.createElement("button");
+          deleteBtn.textContent = "Delete";
+          deleteBtn.onclick = async () => {
+            await deleteDoc(doc(db, "events", docSnap.id));
+            loadEvents();
+          };
+          btnContainer.appendChild(deleteBtn);
+        }
+
+        eventList.appendChild(card);
+      });
+    }
+
+    loadEvents();
+  </script>
+
+  <!-- ===== Other Scripts ===== -->
+  <script>
+    function logout() {
+      localStorage.removeItem("isLoggedIn");
+      window.location.href = "login.html";
+    }
+
+    const toggleBtn = document.getElementById("darkToggle");
+    toggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark-mode");
+      toggleBtn.textContent = document.body.classList.contains("dark-mode")
+        ? "☀️ Light Mode"
+        : "🌙 Dark Mode";
+    });
+  </script>
+</body>
+</html>

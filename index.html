@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard | BGU Event Planner</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script>
+    // Redirect if not logged in
+    if (!localStorage.getItem("userId")) {
+      window.location.href = "login.html";
+    }
+  </script>
+</head>
+<body>
+  <!-- ===== Header ===== -->
+  <header>
+    <h1>BGU Event Planner</h1>
+    <nav>
+      <button id="openEventModal" class="btn">➕ Create Event</button>
+      <button onclick="logout()" class="btn">Logout</button>
+      <button id="darkToggle" class="btn">🌙 Dark Mode</button>
+    </nav>
+  </header>
+
+  <!-- ===== Main Content ===== -->
+  <main class="container">
+    <h2 style="margin-bottom: 20px; color: var(--primary);">Upcoming Events</h2>
+    <section id="eventList" class="event-grid"></section>
+    <p id="emptyMsg" style="text-align:center; margin-top:20px; color:gray; display:none;">
+      No events available. Create one to get started!
+    </p>
+  </main>
+
+  <!-- ===== Create Event Modal ===== -->
+  <div id="eventModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span id="closeModal" class="close">&times;</span>
+      <h2>Create Event</h2>
+      <form id="eventForm" class="event-form">
+        <label for="eventTitle">Title</label>
+        <input type="text" id="eventTitle" required />
+
+        <label for="eventDate">Date</label>
+        <input type="date" id="eventDate" required />
+
+        <label for="eventLocation">Location</label>
+        <input type="text" id="eventLocation" required />
+
+        <label for="eventType">Type</label>
+        <select id="eventType" required>
+          <option value="">Select</option>
+          <option value="Workshop">Workshop</option>
+          <option value="Seminar">Seminar</option>
+          <option value="Conference">Conference</option>
+          <option value="Cultural">Cultural</option>
+        </select>
+
+        <label for="eventDescription">Description</label>
+        <textarea id="eventDescription"></textarea>
+
+        <label for="eventImage">Image</label>
+        <input type="file" id="eventImage" accept="image/*" />
+        <img id="imagePreview" style="max-width:100px; display:none;" />
+
+        <button type="submit" class="btn-primary">Add Event</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== Scripts ===== -->
+  <script type="module">
+    import { db } from "./firebase-config.js";
+    import { collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const eventList = document.getElementById("eventList");
+    const emptyMsg = document.getElementById("emptyMsg");
+    const eventForm = document.getElementById("eventForm");
+    const imageInput = document.getElementById("eventImage");
+    const imagePreview = document.getElementById("imagePreview");
+    const modal = document.getElementById("eventModal");
+
+    let imageBase64 = "";
+
+    // ✅ Logout
+    window.logout = function() {
+      localStorage.removeItem("userId");
+      window.location.href = "login.html";
+    };
+
+    // ✅ Dark mode toggle
+    const toggleBtn = document.getElementById("darkToggle");
+    toggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark-mode");
+      toggleBtn.textContent = document.body.classList.contains("dark-mode")
+        ? "☀️ Light Mode"
+        : "🌙 Dark Mode";
+    });
+
+    // ✅ Modal open/close
+    document.getElementById("openEventModal").onclick = () => modal.style.display = "block";
+    document.getElementById("closeModal").onclick = () => modal.style.display = "none";
+    window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
+
+    // ✅ Image preview
+    imageInput.addEventListener("change", function () {
+      const file = this.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          imageBase64 = e.target.result;
+          imagePreview.src = imageBase64;
+          imagePreview.style.display = "block";
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // ✅ Load events
+    async function loadEvents() {
+      eventList.innerHTML = "";
+      let hasEvents = false;
+
+      try {
+        const querySnapshot = await getDocs(collection(db, "events"));
+        querySnapshot.forEach((eventDoc) => {
+          hasEvents = true;
+          const eventData = eventDoc.data();
+
+          const card = document.createElement("div");
+          card.className = "event-card";
+
+          card.innerHTML = `
+            ${eventData.image ? `<img src="${eventData.image}" alt="Event Image">` : ""}
+            <h3>${eventData.title}</h3>
+            <p>📍 ${eventData.location}</p>
+            <p>📅 ${eventData.date}</p>
+            <p>${eventData.description || ""}</p>
+            <div class="card-buttons">
+              <button onclick="deleteEvent('${eventDoc.id}')">Delete</button>
+            </div>
+          `;
+
+          eventList.appendChild(card);
+        });
+
+        emptyMsg.style.display = hasEvents ? "none" : "block";
+      } catch (error) {
+        console.error("Error loading events:", error);
+        emptyMsg.textContent = "Failed to load events.";
+        emptyMsg.style.display = "block";
+      }
+    }
+
+    // ✅ Add event
+    eventForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const newEvent = {
+        title: document.getElementById("eventTitle").value.trim(),
+        date: document.getElementById("eventDate").value.trim(),
+        location: document.getElementById("eventLocation").value.trim(),
+        type: document.getElementById("eventType").value.trim(),
+        description: document.getElementById("eventDescription").value.trim(),
+        image: imageBase64 || ""
+      };
+
+      try {
+        await addDoc(collection(db, "events"), newEvent);
+        alert("Event added successfully!");
+        eventForm.reset();
+        imagePreview.style.display = "none";
+        modal.style.display = "none"; // ✅ auto-close
+        loadEvents(); // refresh list
+      } catch (error) {
+        console.error("Error adding event:", error);
+        alert("Failed to add event.");
+      }
+    });
+
+    // ✅ Delete event
+    window.deleteEvent = async (id) => {
+      if (confirm("Delete this event?")) {
+        try {
+          await deleteDoc(doc(db, "events", id));
+          alert("Event deleted!");
+          loadEvents();
+        } catch (error) {
+          console.error("Error deleting event:", error);
+          alert("Failed to delete event.");
+        }
+      }
+    };
+
+    // ✅ Load events on start
+    loadEvents();
+  </script>
+</body>
+</html>
