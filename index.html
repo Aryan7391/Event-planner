@@ -5,6 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard | BGU Event Planner</title>
   <link rel="stylesheet" href="./style.css" />
+  <style>
+    /* ===== Logo Styling ===== */
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-bg {
+      background-color: white;
+      padding: 5px 8px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .logo {
+      width: 50px;
+      height: auto;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      margin: 0;
+      color: inherit;
+    }
+
+    @media(max-width:600px){
+      .logo { width: 40px; }
+      header h1 { font-size: 1.5rem; }
+    }
+  </style>
   <script>
     // Redirect if not logged in
     if (!localStorage.getItem("userId")) {
@@ -15,7 +48,12 @@
 <body>
   <!-- ===== Header ===== -->
   <header>
-    <h1>BGU Event Planner</h1>
+    <div class="logo-container">
+      <div class="logo-bg">
+        <img src="https://www.bgu.ac.in/wp-content/themes/bgu/images/bgu-logo.png" alt="Birla Global University Logo" class="logo">
+      </div>
+      <h1>BGU Event Planner</h1>
+    </div>
     <nav>
       <button id="openEventModal" class="btn">➕ Create Event</button>
       <button onclick="logout()" class="btn">Logout</button>
